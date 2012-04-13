@@ -351,7 +351,7 @@ Oa.prototype.findHost = function(path, user) {
  * WebSocket Crap
  ******************************************************************************/
 
-/** Calculate a response for a WebSocket handshake. */
+/** Calculate a response for a pre-RFC6455 WebSocket handshake. */
 var calc_response = function(key1,key2,key3) {
 	// Create a hash thingy.
 	var md5 = crypto.createHash('md5');
@@ -375,6 +375,15 @@ var calc_response = function(key1,key2,key3) {
 	
 	// Return the digest as a string.
 	return md5.digest('binary');
+}
+
+/** Calculate a response for an RFC6455 WebSocket handshake. */
+var calc_response_6455 = function(key) {
+  // GUID
+  var guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+  var sha1 = crypto.createHash('sha1');
+  sha1.update(key+guid);
+  return sha1.digest('base64'); 
 }
 
 /** Read the frame length from data. */
@@ -525,17 +534,20 @@ var parseHeader = function parseHeader(stream) {
 			 is_valid = false; break; }
 	}
 	
-	// Check for the presence of a Sec-WebSocket header.
-	if ( headers['Sec-WebSocket-Key2'] !== undefined ) {
-		try {
+	// Check for the presence of a Sec-WebSocket header (pre-RFC6455).
+	try {
+		if ( headers['Sec-WebSocket-Key2'] !== undefined ) {
 			stream.challenge = calc_response(
 				headers['Sec-WebSocket-Key1'],
 				headers['Sec-WebSocket-Key2'],
 				extra);
-		} catch(err) {
-			// Invalid header thingy. Drop it.
-			stream.destroy();
-			return; }
+		} else if ( headers['Sec-WebSocket-Key'] !== undefined ) { // RFC6455
+			stream.accept = calc_response_6455(headers['Sec-WebSocket-Key']);
+        	}
+	} catch(err) {
+		// Invalid header thingy. Drop it.
+		stream.destroy();
+		return;
 	}
 	
 	// Check for the Host header.
@@ -603,8 +615,14 @@ var parseHeader = function parseHeader(stream) {
 
 /** Send a WebSocket handshake. */
 var send_handshake = function(stream) {
-	var out = ['HTTP/1.1 101 WebSocket Protocol Handshake'];
-	if ( stream.challenge ) {
+	var out = [];
+	if ( stream.accept ) {
+		out.push('HTTP/1.1 101 Switching Protocols');
+		out.push('Sec-WebSocket-Accept: ' + stream.accept);
+	} else {
+		out.push('HTTP/1.1 101 WebSocket Protocol Handshake');
+	}
+	if ( stream.challenge || stream.accept ) {
 		out.push('Sec-WebSocket-Origin: ' + stream.origin);
 		out.push('Sec-WebSocket-Location: ' + stream.loc);
 	} else {
