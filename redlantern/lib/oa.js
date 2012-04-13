@@ -663,13 +663,13 @@ var send_handshake = function(stream) {
 		out.push('Sec-WebSocket-Origin: ' + stream.origin);
 	} else {
 		out.push('HTTP/1.1 101 WebSocket Protocol Handshake');
+		if ( stream.challenge ) {
+			out.push('Sec-WebSocket-Origin: ' + stream.origin);
+			out.push('Sec-WebSocket-Location: ' + stream.loc);
+		} else {
+			out.push('WebSocket-Origin: ' + stream.origin);
+			out.push('WebSocket-Location: ' + stream.loc); }
 	}
-	if ( stream.challenge ) {
-		out.push('Sec-WebSocket-Origin: ' + stream.origin);
-		out.push('Sec-WebSocket-Location: ' + stream.loc);
-	} else {
-		out.push('WebSocket-Origin: ' + stream.origin);
-		out.push('WebSocket-Location: ' + stream.loc); }
 	
 	out.splice(1,0,'Upgrade: WebSocket');
 	out.splice(1,0,'Connection: Upgrade');
