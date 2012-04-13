@@ -660,10 +660,11 @@ var send_handshake = function(stream) {
 	if ( stream.accept ) {
 		out.push('HTTP/1.1 101 Switching Protocols');
 		out.push('Sec-WebSocket-Accept: ' + stream.accept);
+		out.push('Sec-WebSocket-Origin: ' + stream.origin);
 	} else {
 		out.push('HTTP/1.1 101 WebSocket Protocol Handshake');
 	}
-	if ( stream.challenge || stream.accept ) {
+	if ( stream.challenge ) {
 		out.push('Sec-WebSocket-Origin: ' + stream.origin);
 		out.push('Sec-WebSocket-Location: ' + stream.loc);
 	} else {
